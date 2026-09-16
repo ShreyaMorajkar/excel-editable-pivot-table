@@ -132,4 +132,18 @@ engine.toggleColNode('2024');
 console.log('Re-expanded Year Periods count:', engine.getActiveTimePeriods().length);
 console.log('Column Re-expand Check:', engine.getActiveTimePeriods().length === 6 ? 'PASS' : 'FAIL');
 
+console.log('\n--- TEST 7: Total (ROOT) Row Node Collapse ---');
+console.log('Is ROOT expanded initially:', engine.isNodeExpanded('ROOT'));
+engine.toggleNode('ROOT');
+console.log('Is ROOT expanded after toggle:', engine.isNodeExpanded('ROOT'));
+console.log('ROOT Collapse Check:', engine.isNodeExpanded('ROOT') === false ? 'PASS' : 'FAIL');
+
+engine.collapseAll();
+console.log('Is ROOT expanded after collapseAll:', engine.isNodeExpanded('ROOT'));
+console.log('CollapseAll ROOT Check:', engine.isNodeExpanded('ROOT') === false ? 'PASS' : 'FAIL');
+
+engine.expandAll();
+console.log('Is ROOT expanded after expandAll:', engine.isNodeExpanded('ROOT'));
+console.log('ExpandAll ROOT Check:', engine.isNodeExpanded('ROOT') === true ? 'PASS' : 'FAIL');
+
 console.log('\nAll tests successfully PASSED!');

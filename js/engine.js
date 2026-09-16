@@ -575,7 +575,9 @@ class PivotEngine {
   }
 
   isNodeExpanded(nodeKey) {
-    if (nodeKey === 'ROOT') return true;
+    if (!this.expandedNodes.has(nodeKey)) {
+      return true;
+    }
     return this.expandedNodes.get(nodeKey) === true;
   }
 
@@ -590,7 +592,7 @@ class PivotEngine {
 
   collapseAll() {
     this.expandedNodes.clear();
-    this.expandedNodes.set('ROOT', true);
+    this.expandedNodes.set('ROOT', false);
   }
 }
 
