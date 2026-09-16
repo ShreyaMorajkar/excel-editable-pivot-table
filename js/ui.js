@@ -730,7 +730,7 @@ class PivotUI {
     if (this.editingCell) return;
 
     this.editingCell = td;
-    const currentVal = td.dataset.rawVal || '';
+    const currentVal = td.dataset.rawVal !== undefined ? td.dataset.rawVal : '';
 
     const input = document.createElement('input');
     input.type = 'text';
@@ -742,13 +742,18 @@ class PivotUI {
     input.focus();
     input.select();
 
+    let isCommitted = false;
     const commit = () => {
+      if (isCommitted) return;
+      isCommitted = true;
       const newVal = input.value;
       this.editingCell = null;
       this.commitEdit(node, colKey, measure.id, newVal);
     };
 
     const cancel = () => {
+      if (isCommitted) return;
+      isCommitted = true;
       this.editingCell = null;
       this.render();
     };

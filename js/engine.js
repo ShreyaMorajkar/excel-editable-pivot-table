@@ -508,12 +508,18 @@ class PivotEngine {
    * Top-Down Disaggregation & In-Cell Edit Handler
    */
   updateCellValue({ node, colKey, measureId, newValue }) {
-    const numVal = parseFloat(newValue);
+    if (newValue === null || newValue === undefined) return false;
+    const cleanStr = String(newValue).replace(/[\$,]/g, '').trim();
+    const numVal = parseFloat(cleanStr);
     if (isNaN(numVal)) return false;
 
-    // Filter node's rows matching this column time bucket
+    // Filter node's rows matching this column time bucket (including collapsed totals)
     const targetRows = node.rows.filter(row => {
       const rowColKey = this.columnDimensions.map(d => row[d] || '').join('___');
+      if (colKey.endsWith('___COLLAPSED_TOTAL')) {
+        const topVal = colKey.replace('___COLLAPSED_TOTAL', '');
+        return String(row[this.columnDimensions[0]]) === topVal;
+      }
       return rowColKey === colKey;
     });
 
@@ -521,8 +527,9 @@ class PivotEngine {
 
     if (node.isLeaf) {
       // Direct Leaf Node Edit
-      const row = targetRows[0];
-      row[measureId] = numVal;
+      targetRows.forEach(row => {
+        row[measureId] = numVal;
+      });
     } else {
       // Disaggregate to Child Rows
       if (measureId === 'Forecast' || measureId === 'ActualSales' || measureId === 'Supply') {
