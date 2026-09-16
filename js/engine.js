@@ -87,11 +87,84 @@ class PivotEngine {
     // Default root level expanded
     this.expandedNodes.set('ROOT', true);
 
+    // Column Hierarchy Expand/Collapse State: Map of colNodeKey -> boolean (true = expanded)
+    this.expandedColNodes = new Map();
+
     // Active Visible Measures (ids)
     this.activeMeasureIds = ['Price', 'ActualSales', 'Forecast', 'Supply', 'Revenue', 'PrevInventory', 'EndingInventory'];
 
     // Sorted chronological time periods cache
     this.timePeriods = [];
+  }
+
+  toggleColNode(colNodeKey) {
+    const current = this.isColNodeExpanded(colNodeKey);
+    this.expandedColNodes.set(colNodeKey, !current);
+  }
+
+  isColNodeExpanded(colNodeKey) {
+    // Default to true (expanded) if not explicitly set
+    if (!this.expandedColNodes.has(colNodeKey)) return true;
+    return this.expandedColNodes.get(colNodeKey) === true;
+  }
+
+  /**
+   * Returns active time periods taking into account collapsible column dimensions (e.g. Year)
+   */
+  getActiveTimePeriods() {
+    const basePeriods = this.getSortedTimePeriods();
+    if (this.columnDimensions.length <= 1) {
+      return basePeriods.map(p => ({
+        ...p,
+        isCollapsed: false,
+        topDimKey: p.colValues[0],
+        childColKeys: [p.colKey]
+      }));
+    }
+
+    // Group by top-level dimension (e.g. Year)
+    const groups = new Map();
+    basePeriods.forEach(p => {
+      const topVal = p.colValues[0] || '(Blank)';
+      if (!groups.has(topVal)) {
+        groups.set(topVal, []);
+      }
+      groups.get(topVal).push(p);
+    });
+
+    const result = [];
+    groups.forEach((periods, topVal) => {
+      const isExp = this.isColNodeExpanded(topVal);
+      if (isExp) {
+        periods.forEach((p, idx) => {
+          result.push({
+            ...p,
+            topDimKey: topVal,
+            isCollapsed: false,
+            isFirstInGroup: idx === 0,
+            groupSpan: periods.length,
+            childColKeys: [p.colKey]
+          });
+        });
+      } else {
+        // Collapsed column summary for this top dimension
+        const collapsedKey = `${topVal}___COLLAPSED_TOTAL`;
+        const collapsedColValues = [topVal, 'Total'];
+        result.push({
+          colKey: collapsedKey,
+          colValues: collapsedColValues,
+          topDimKey: topVal,
+          isCollapsed: true,
+          isFirstInGroup: true,
+          groupSpan: 1,
+          childColKeys: periods.map(p => p.colKey),
+          firstPeriodColKey: periods[0].colKey,
+          lastPeriodColKey: periods[periods.length - 1].colKey
+        });
+      }
+    });
+
+    return result;
   }
 
   setData(csvParsed) {
@@ -258,7 +331,7 @@ class PivotEngine {
   buildPivotGrid() {
     this.recomputeAll();
 
-    const sortedPeriods = this.getSortedTimePeriods();
+    const activePeriods = this.getActiveTimePeriods();
     const rootNode = {
       key: 'ROOT',
       dimName: 'ALL',
@@ -306,11 +379,11 @@ class PivotEngine {
     });
 
     // Aggregate measures on all tree nodes
-    this.aggregateTreeNode(rootNode, sortedPeriods);
+    this.aggregateTreeNode(rootNode, activePeriods);
 
     return {
       rootNode,
-      timePeriods: sortedPeriods,
+      timePeriods: activePeriods,
       columnDimensions: this.columnDimensions,
       rowDimensions: this.rowDimensions,
       activeMeasures: this.activeMeasureIds.map(id => this.getMeasureById(id)).filter(Boolean)
@@ -320,19 +393,21 @@ class PivotEngine {
   /**
    * Recursively aggregates base measures and evaluates formulas on node
    */
-  aggregateTreeNode(node, sortedPeriods) {
+  aggregateTreeNode(node, activePeriods) {
     // First recurse children
-    node.children.forEach(child => this.aggregateTreeNode(child, sortedPeriods));
+    node.children.forEach(child => this.aggregateTreeNode(child, activePeriods));
 
     const isLeaf = node.children.size === 0;
     node.isLeaf = isLeaf;
     node.aggregatedData = {};
 
-    sortedPeriods.forEach(period => {
+    activePeriods.forEach(period => {
       const colKey = period.colKey;
+      const childKeysSet = new Set(period.childColKeys || [colKey]);
+
       const matchingRows = node.rows.filter(row => {
         const rowColKey = this.columnDimensions.map(d => row[d] || '').join('___');
-        return rowColKey === colKey;
+        return childKeysSet.has(rowColKey);
       });
 
       const data = {};
@@ -351,20 +426,34 @@ class PivotEngine {
         const forecast = parseFloat(row.Forecast) || 0;
         const price = parseFloat(row.Price) || 0;
         const supply = parseFloat(row.Supply) || 0;
-        const prevInv = parseFloat(row.PrevInventory) || 0;
-        const endInv = parseFloat(row.EndingInventory) || 0;
 
         sumSales += sales;
         sumForecast += forecast;
         sumSupply += supply;
-        sumPrevInv += prevInv;
-        sumEndingInv += endInv;
 
         // Price weighting by Forecast (or Sales if Forecast is 0)
         const weight = forecast > 0 ? forecast : (sales > 0 ? sales : 1);
         sumWeightedPriceNumerator += (price * weight);
         sumPriceWeightUnits += weight;
       });
+
+      // Inventory aggregation
+      if (period.isCollapsed) {
+        // PrevInventory from earliest period, EndingInventory from latest period
+        const firstPeriodRows = node.rows.filter(row => {
+          const rowColKey = this.columnDimensions.map(d => row[d] || '').join('___');
+          return rowColKey === period.firstPeriodColKey;
+        });
+        const lastPeriodRows = node.rows.filter(row => {
+          const rowColKey = this.columnDimensions.map(d => row[d] || '').join('___');
+          return rowColKey === period.lastPeriodColKey;
+        });
+        sumPrevInv = firstPeriodRows.reduce((sum, r) => sum + (parseFloat(r.PrevInventory) || 0), 0);
+        sumEndingInv = lastPeriodRows.reduce((sum, r) => sum + (parseFloat(r.EndingInventory) || 0), 0);
+      } else {
+        sumPrevInv = matchingRows.reduce((sum, r) => sum + (parseFloat(r.PrevInventory) || 0), 0);
+        sumEndingInv = matchingRows.reduce((sum, r) => sum + (parseFloat(r.EndingInventory) || 0), 0);
+      }
 
       data['ActualSales'] = sumSales;
       data['Forecast'] = sumForecast;

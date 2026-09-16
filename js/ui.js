@@ -381,56 +381,138 @@ class PivotUI {
     const colDims = this.engine.columnDimensions;
 
     if (this.measurePlacement === 'ROWS') {
-      // Dimension level headers across top
-      colDims.forEach((dimName, level) => {
-        const tr = document.createElement('tr');
+      // 1. Top Level Dimension (e.g. Year) with Expand/Collapse
+      const tr0 = document.createElement('tr');
+      const cornerTh = document.createElement('th');
+      cornerTh.className = 'corner-header';
+      cornerTh.rowSpan = colDims.length;
+      cornerTh.innerHTML = `<strong>${this.engine.rowDimensions.join(' ▸ ')}</strong>`;
+      tr0.appendChild(cornerTh);
 
-        if (level === 0) {
-          const cornerTh = document.createElement('th');
-          cornerTh.className = 'corner-header';
-          cornerTh.rowSpan = colDims.length;
-          cornerTh.innerHTML = `<strong>${this.engine.rowDimensions.join(' ▸ ')}</strong>`;
-          tr.appendChild(cornerTh);
-        }
-
-        // Add headers for each time bucket
-        timePeriods.forEach(period => {
+      timePeriods.forEach(period => {
+        if (period.isFirstInGroup) {
           const th = document.createElement('th');
-          th.textContent = period.colValues[level] || '';
-          tr.appendChild(th);
-        });
+          th.colSpan = period.groupSpan;
+          th.style.background = '#d9e2ec';
+          th.style.borderBottom = '2px solid #9fb3c8';
 
-        thead.appendChild(tr);
+          const container = document.createElement('div');
+          container.className = 'tree-node-content';
+          container.style.justifyContent = 'center';
+
+          // Expander button if there are child dimensions
+          if (colDims.length > 1) {
+            const isExp = !period.isCollapsed;
+            const expander = document.createElement('span');
+            expander.className = 'tree-expander';
+            expander.textContent = isExp ? '▼' : '▶';
+            expander.title = isExp ? `Collapse ${period.topDimKey}` : `Expand ${period.topDimKey}`;
+            expander.onclick = (e) => {
+              e.stopPropagation();
+              this.engine.toggleColNode(period.topDimKey);
+              this.render();
+            };
+            container.appendChild(expander);
+          }
+
+          const label = document.createElement('span');
+          label.innerHTML = `<strong>${period.topDimKey}</strong> ${period.isCollapsed ? '<em>(Total)</em>' : ''}`;
+          container.appendChild(label);
+
+          th.appendChild(container);
+          tr0.appendChild(th);
+        }
       });
+      thead.appendChild(tr0);
+
+      // 2. Child Level Dimensions (e.g. Month)
+      if (colDims.length > 1) {
+        for (let lvl = 1; lvl < colDims.length; lvl++) {
+          const trLvl = document.createElement('tr');
+          timePeriods.forEach(period => {
+            const th = document.createElement('th');
+            th.textContent = period.colValues[lvl] || (period.isCollapsed ? 'Total' : '');
+            if (period.isCollapsed) {
+              th.style.background = '#eef2f6';
+              th.style.fontStyle = 'italic';
+            }
+            trLvl.appendChild(th);
+          });
+          thead.appendChild(trLvl);
+        }
+      }
     } else {
-      // Measure spread across columns
-      colDims.forEach((dimName, level) => {
-        const tr = document.createElement('tr');
-        if (level === 0) {
-          const cornerTh = document.createElement('th');
-          cornerTh.className = 'corner-header';
-          cornerTh.rowSpan = colDims.length + 1;
-          cornerTh.innerHTML = `<strong>${this.engine.rowDimensions.join(' ▸ ')}</strong>`;
-          tr.appendChild(cornerTh);
-        }
+      // Measures on Columns (Spread)
+      const tr0 = document.createElement('tr');
+      const cornerTh = document.createElement('th');
+      cornerTh.className = 'corner-header';
+      cornerTh.rowSpan = colDims.length + 1;
+      cornerTh.innerHTML = `<strong>${this.engine.rowDimensions.join(' ▸ ')}</strong>`;
+      tr0.appendChild(cornerTh);
 
-        timePeriods.forEach(period => {
+      timePeriods.forEach(period => {
+        if (period.isFirstInGroup) {
           const th = document.createElement('th');
-          th.colSpan = activeMeasures.length;
-          th.textContent = period.colValues[level] || '';
-          tr.appendChild(th);
-        });
+          th.colSpan = period.groupSpan * activeMeasures.length;
+          th.style.background = '#d9e2ec';
+          th.style.borderBottom = '2px solid #9fb3c8';
 
-        thead.appendChild(tr);
+          const container = document.createElement('div');
+          container.className = 'tree-node-content';
+          container.style.justifyContent = 'center';
+
+          if (colDims.length > 1) {
+            const isExp = !period.isCollapsed;
+            const expander = document.createElement('span');
+            expander.className = 'tree-expander';
+            expander.textContent = isExp ? '▼' : '▶';
+            expander.title = isExp ? `Collapse ${period.topDimKey}` : `Expand ${period.topDimKey}`;
+            expander.onclick = (e) => {
+              e.stopPropagation();
+              this.engine.toggleColNode(period.topDimKey);
+              this.render();
+            };
+            container.appendChild(expander);
+          }
+
+          const label = document.createElement('span');
+          label.innerHTML = `<strong>${period.topDimKey}</strong> ${period.isCollapsed ? '<em>(Total)</em>' : ''}`;
+          container.appendChild(label);
+
+          th.appendChild(container);
+          tr0.appendChild(th);
+        }
       });
+      thead.appendChild(tr0);
+
+      // Child Level Dimensions (e.g. Month)
+      if (colDims.length > 1) {
+        for (let lvl = 1; lvl < colDims.length; lvl++) {
+          const trLvl = document.createElement('tr');
+          timePeriods.forEach(period => {
+            const th = document.createElement('th');
+            th.colSpan = activeMeasures.length;
+            th.textContent = period.colValues[lvl] || (period.isCollapsed ? 'Total' : '');
+            if (period.isCollapsed) {
+              th.style.background = '#eef2f6';
+              th.style.fontStyle = 'italic';
+            }
+            trLvl.appendChild(th);
+          });
+          thead.appendChild(trLvl);
+        }
+      }
 
       // Bottom header row for Measures
       const measTr = document.createElement('tr');
-      timePeriods.forEach(() => {
+      timePeriods.forEach(period => {
         activeMeasures.forEach(m => {
           const th = document.createElement('th');
           th.style.fontSize = '11px';
           th.textContent = m.label || m.id;
+          if (period.isCollapsed) {
+            th.style.background = '#e8eff7';
+          }
           measTr.appendChild(th);
         });
       });

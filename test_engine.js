@@ -114,4 +114,22 @@ console.log('Pivoted Root Child Categories:', Array.from(pivotedGrid.rootNode.ch
 console.log('Pivoted Time & Region Periods count:', pivotedGrid.timePeriods.length);
 console.log('Dynamic Pivoting Check:', pivotedGrid.rootNode.children.has('TV') ? 'PASS' : 'FAIL');
 
+console.log('\n--- TEST 6: Collapsible Year / Column Hierarchy ---');
+engine.setPivotConfig({
+  rowDimensions: ['Region', 'Country'],
+  columnDimensions: ['Year', 'Month']
+});
+console.log('Expanded Year Periods count:', engine.getActiveTimePeriods().length);
+
+// Collapse Year 2024
+engine.toggleColNode('2024');
+const collapsedPeriods = engine.getActiveTimePeriods();
+console.log('Collapsed Year Periods count:', collapsedPeriods.length, collapsedPeriods.map(p => p.colKey));
+console.log('Column Collapse Check:', collapsedPeriods.length === 1 && collapsedPeriods[0].isCollapsed ? 'PASS' : 'FAIL');
+
+// Re-expand Year 2024
+engine.toggleColNode('2024');
+console.log('Re-expanded Year Periods count:', engine.getActiveTimePeriods().length);
+console.log('Column Re-expand Check:', engine.getActiveTimePeriods().length === 6 ? 'PASS' : 'FAIL');
+
 console.log('\nAll tests successfully PASSED!');
