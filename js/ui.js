@@ -476,7 +476,7 @@ class PivotUI {
           // Dimension badge & title
           if (!isRoot) {
             const badge = document.createElement('span');
-            badge.className = 'tree-dim-badge';
+            badge.className = `tree-dim-badge tree-dim-${node.dimName}`;
             badge.textContent = node.dimName;
             content.appendChild(badge);
           }
@@ -558,7 +558,7 @@ class PivotUI {
       // Dimension badge & title
       if (!isRoot) {
         const badge = document.createElement('span');
-        badge.className = 'tree-dim-badge';
+        badge.className = `tree-dim-badge tree-dim-${node.dimName}`;
         badge.textContent = node.dimName;
         content.appendChild(badge);
       }

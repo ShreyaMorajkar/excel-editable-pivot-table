@@ -343,12 +343,19 @@ body {
 
 .tree-dim-badge {
   font-size: 10px;
-  padding: 1px 5px;
+  padding: 1px 6px;
   background: #eef2f6;
   color: #4a5568;
   border-radius: 3px;
   font-weight: 600;
+  text-transform: uppercase;
 }
+
+.tree-dim-Region { background: #e3f2fd; color: #1565c0; }
+.tree-dim-Country { background: #e8f5e9; color: #2e7d32; }
+.tree-dim-City { background: #f3e5f5; color: #7b1fa2; }
+.tree-dim-ProductFamily { background: #fff3e0; color: #e65100; }
+.tree-dim-Item { background: #e0f2f1; color: #00695c; }
 
 .measure-name-label {
   font-size: 11px;

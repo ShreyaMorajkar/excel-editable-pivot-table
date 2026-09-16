@@ -25,7 +25,10 @@ document.addEventListener('DOMContentLoaded', () => {
     format: 'number'
   });
 
-  // 4. Initialize and render UI
+  // 4. Expand all levels by default so Cities, Product Families, and Items are immediately visible
+  engine.expandAll();
+
+  // 5. Initialize and render UI
   const ui = new PivotUI(engine);
   ui.render();
 
