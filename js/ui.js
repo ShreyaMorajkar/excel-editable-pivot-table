@@ -145,11 +145,42 @@ class PivotUI {
       URL.revokeObjectURL(url);
     });
 
-    // Formula bar direct input
-    this.formulaBarInput?.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && this.selectedCell) {
+    // Formula bar direct input & buttons
+    document.getElementById('btnApplyFormulaBar')?.addEventListener('click', () => {
+      if (this.selectedCell) {
         const val = this.formulaBarInput.value;
         this.commitEdit(this.selectedCell.node, this.selectedCell.colKey, this.selectedCell.measureId, val);
+      }
+    });
+
+    document.getElementById('btnCancelFormulaBar')?.addEventListener('click', () => {
+      if (this.selectedCell) {
+        this.formulaBarInput.value = this.selectedCell.val;
+      }
+    });
+
+    this.formulaBarInput?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && this.selectedCell) {
+        e.preventDefault();
+        const val = this.formulaBarInput.value;
+        this.commitEdit(this.selectedCell.node, this.selectedCell.colKey, this.selectedCell.measureId, val);
+      }
+    });
+
+    // Global keyboard handling for spreadsheet-style instant typing
+    document.addEventListener('keydown', (e) => {
+      if (this.editingCell) return;
+      const activeTag = document.activeElement?.tagName?.toLowerCase();
+      if (activeTag === 'input' || activeTag === 'textarea' || activeTag === 'select') return;
+
+      if (this.selectedCell && this.selectedCell.measure?.editable) {
+        if (e.key === 'Enter' || e.key === 'F2') {
+          e.preventDefault();
+          this.startCellEdit(this.selectedCell.element, this.selectedCell.node, this.selectedCell.colKey, this.selectedCell.measure);
+        } else if (/^[\d\.\-]$/.test(e.key)) {
+          e.preventDefault();
+          this.startCellEdit(this.selectedCell.element, this.selectedCell.node, this.selectedCell.colKey, this.selectedCell.measure, e.key);
+        }
       }
     });
 
@@ -632,8 +663,12 @@ class PivotUI {
 
           td.textContent = this.formatValue(val, measure.format);
 
-          td.addEventListener('click', () => {
-            this.selectCell(td, node, colKey, measure, val);
+          td.addEventListener('click', (e) => {
+            if (this.selectedCell?.element === td && measure.editable && !this.editingCell) {
+              this.startCellEdit(td, node, colKey, measure);
+            } else {
+              this.selectCell(td, node, colKey, measure, val);
+            }
           });
 
           if (measure.editable) {
@@ -707,8 +742,12 @@ class PivotUI {
 
           td.textContent = this.formatValue(val, measure.format);
 
-          td.addEventListener('click', () => {
-            this.selectCell(td, node, colKey, measure, val);
+          td.addEventListener('click', (e) => {
+            if (this.selectedCell?.element === td && measure.editable && !this.editingCell) {
+              this.startCellEdit(td, node, colKey, measure);
+            } else {
+              this.selectCell(td, node, colKey, measure, val);
+            }
           });
 
           if (measure.editable) {
@@ -757,14 +796,14 @@ class PivotUI {
     this.statSelected.textContent = `${path} [${colKey}]`;
     this.statSum.textContent = this.formatValue(val, measure.format);
     this.statAvg.textContent = this.formatValue(val, measure.format);
-    this.showStatus(`Selected ${measure.label || measure.id} for ${node.dimValue} (${colKey}). ${measure.editable ? 'Double-click or press Enter to edit.' : ''}`);
+    this.showStatus(`Selected ${measure.label || measure.id} for ${node.dimValue} (${colKey}). ${measure.editable ? 'Click again, double-click, type a number, or edit in formula bar.' : ''}`);
   }
 
-  startCellEdit(td, node, colKey, measure) {
+  startCellEdit(td, node, colKey, measure, initialChar = null) {
     if (this.editingCell) return;
 
     this.editingCell = td;
-    const currentVal = td.dataset.rawVal !== undefined ? td.dataset.rawVal : '';
+    const currentVal = initialChar !== null ? initialChar : (td.dataset.rawVal !== undefined ? td.dataset.rawVal : '');
 
     const input = document.createElement('input');
     input.type = 'text';
@@ -773,8 +812,13 @@ class PivotUI {
 
     td.innerHTML = '';
     td.appendChild(input);
-    input.focus();
-    input.select();
+
+    setTimeout(() => {
+      input.focus();
+      if (initialChar === null) {
+        input.select();
+      }
+    }, 10);
 
     let isCommitted = false;
     const commit = () => {
