@@ -530,6 +530,81 @@ class PivotUI {
 
         tbody.appendChild(tr);
       });
+    } else {
+      // Measures on Columns (Spread side-by-side horizontally)
+      const tr = document.createElement('tr');
+      tr.className = isRoot ? 'row-level-root' : `row-level-${node.level}`;
+
+      const th = document.createElement('th');
+      th.className = 'row-header';
+
+      const content = document.createElement('div');
+      content.className = 'tree-node-content';
+      content.style.paddingLeft = `${Math.max(0, node.level) * 20}px`;
+
+      // Expander button
+      const expander = document.createElement('span');
+      expander.className = `tree-expander ${hasChildren ? '' : 'empty'}`;
+      expander.textContent = hasChildren ? (isExpanded ? '▼' : '▶') : '•';
+      if (hasChildren) {
+        expander.onclick = (e) => {
+          e.stopPropagation();
+          this.engine.toggleNode(node.key);
+          this.render();
+        };
+      }
+      content.appendChild(expander);
+
+      // Dimension badge & title
+      if (!isRoot) {
+        const badge = document.createElement('span');
+        badge.className = 'tree-dim-badge';
+        badge.textContent = node.dimName;
+        content.appendChild(badge);
+      }
+
+      const label = document.createElement('span');
+      label.style.fontWeight = isRoot ? '700' : (hasChildren ? '600' : 'normal');
+      label.textContent = node.dimValue;
+      content.appendChild(label);
+
+      th.appendChild(content);
+      tr.appendChild(th);
+
+      // Data cells for each time period and each measure
+      timePeriods.forEach(period => {
+        const colKey = period.colKey;
+        activeMeasures.forEach(measure => {
+          const val = node.aggregatedData[colKey]?.[measure.id] ?? 0;
+
+          const td = document.createElement('td');
+          td.className = 'cell-number';
+          if (measure.editable) {
+            td.classList.add('cell-editable');
+          }
+
+          td.dataset.nodeKey = node.key;
+          td.dataset.colKey = colKey;
+          td.dataset.measureId = measure.id;
+          td.dataset.rawVal = val;
+
+          td.textContent = this.formatValue(val, measure.format);
+
+          td.addEventListener('click', () => {
+            this.selectCell(td, node, colKey, measure, val);
+          });
+
+          if (measure.editable) {
+            td.addEventListener('dblclick', () => {
+              this.startCellEdit(td, node, colKey, measure);
+            });
+          }
+
+          tr.appendChild(td);
+        });
+      });
+
+      tbody.appendChild(tr);
     }
 
     // Recurse children if expanded
