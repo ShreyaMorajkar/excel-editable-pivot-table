@@ -386,6 +386,7 @@ class PivotUI {
       const cornerTh = document.createElement('th');
       cornerTh.className = 'corner-header';
       cornerTh.rowSpan = colDims.length;
+      cornerTh.colSpan = 2; // Spans both the Hierarchy Column and the Measure Name Column!
       cornerTh.innerHTML = `<strong>${this.engine.rowDimensions.join(' ▸ ')}</strong>`;
       tr0.appendChild(cornerTh);
 
