@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Excel Editable Pivot Table - Dynamic Formulas & Inventory</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- App Header -->
+  <header class="app-header">
+    <div class="header-title">
+      <div class="excel-icon">X</div>
+      <h1>Excel Editable Pivot Engine</h1>
+      <div class="header-badges">
+        <span class="badge">Dynamic AST Formulas</span>
+        <span class="badge">Weighted Avg Price</span>
+        <span class="badge">Inventory Chaining</span>
+        <span class="badge">Disaggregation</span>
+        <span class="badge">100% Pure JS</span>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-sm btn-accent" id="btnToggleSidebar">Toggle Field List</button>
+    </div>
+  </header>
+
+  <!-- Ribbon Toolbar -->
+  <div class="toolbar-ribbon">
+    <div class="ribbon-group">
+      <span class="ribbon-label">Data</span>
+      <button class="btn btn-sm" id="btnImportCSV">
+        <span>📁</span> Import CSV
+      </button>
+      <button class="btn btn-sm" id="btnExportCSV">
+        <span>💾</span> Export Pivot CSV
+      </button>
+      <button class="btn btn-sm" id="btnExportRawCSV">
+        <span>📄</span> Export Raw CSV
+      </button>
+      <button class="btn btn-sm" id="btnResetData">
+        <span>🔄</span> Reset Default
+      </button>
+    </div>
+
+    <div class="ribbon-group">
+      <span class="ribbon-label">Hierarchy</span>
+      <button class="btn btn-sm" id="btnExpandAll">
+        <span>⊞</span> Expand All
+      </button>
+      <button class="btn btn-sm" id="btnCollapseAll">
+        <span>⊟</span> Collapse All
+      </button>
+    </div>
+
+    <div class="ribbon-group">
+      <span class="ribbon-label">Calculations</span>
+      <button class="btn btn-sm btn-primary" id="btnAddFormula">
+        <span>➕</span> Add Custom Formula
+      </button>
+      <div style="display: flex; align-items: center; gap: 4px; font-size: 12px;">
+        <label for="globalParamN" style="font-weight: 600;">Param n =</label>
+        <input type="number" id="globalParamN" value="4" style="width: 45px; padding: 2px 4px; border: 1px solid var(--border-color); border-radius: 3px; font-size: 12px;">
+      </div>
+    </div>
+
+    <div class="ribbon-group">
+      <span class="ribbon-label">Measure Display</span>
+      <select id="measurePlacementSelect" style="font-size: 12px; padding: 3px 6px; border: 1px solid var(--border-color); border-radius: 3px;">
+        <option value="ROWS">Measures on Rows (Stacked)</option>
+        <option value="COLS">Measures on Columns (Spread)</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Formula Bar -->
+  <div class="formula-bar-container">
+    <div class="cell-address" id="activeCellAddress">Ready</div>
+    <div class="formula-fx">fx</div>
+    <input type="text" class="formula-input" id="formulaBarInput" placeholder="Click any cell or edit formula...">
+    <button class="btn btn-sm" id="btnApplyFormulaBar" style="display:none;">Apply</button>
+  </div>
+
+  <!-- Main App Workspace -->
+  <div class="app-workspace">
+    
+    <!-- Pivot Table Grid Viewport -->
+    <div class="grid-viewport" id="gridViewport">
+      <table class="pivot-table" id="pivotTable">
+        <!-- Rendered dynamically by js/ui.js -->
+      </table>
+    </div>
+
+    <!-- Pivot Field List Sidebar (Excel Style Drag and Drop) -->
+    <aside class="pivot-sidebar" id="pivotSidebar">
+      <div class="sidebar-header">
+        <h2>Pivot Table Fields</h2>
+        <button class="btn-icon btn-sm btn" id="btnCloseSidebar" title="Hide Sidebar">✕</button>
+      </div>
+
+      <div class="field-search">
+        <input type="text" id="fieldSearchInput" placeholder="Search fields...">
+      </div>
+
+      <!-- Available Fields Pool -->
+      <div class="fields-pool">
+        <div class="pool-title">Choose fields to add to report:</div>
+        <div class="field-list" id="availableFieldsList">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+      <!-- Drag and Drop 2x2 Zones -->
+      <div class="drop-zones-container">
+        <!-- Filters Zone -->
+        <div class="drop-zone" data-zone="filters">
+          <div class="drop-zone-header">
+            <span>🔍 FILTERS</span>
+          </div>
+          <div class="drop-zone-content" id="zoneFilters"></div>
+        </div>
+
+        <!-- Columns Zone -->
+        <div class="drop-zone" data-zone="columns">
+          <div class="drop-zone-header">
+            <span>⫴ COLUMNS</span>
+          </div>
+          <div class="drop-zone-content" id="zoneColumns"></div>
+        </div>
+
+        <!-- Rows Zone -->
+        <div class="drop-zone" data-zone="rows">
+          <div class="drop-zone-header">
+            <span>≡ ROWS</span>
+          </div>
+          <div class="drop-zone-content" id="zoneRows"></div>
+        </div>
+
+        <!-- Values / Measures Zone -->
+        <div class="drop-zone" data-zone="measures">
+          <div class="drop-zone-header">
+            <span>∑ VALUES (MEASURES)</span>
+          </div>
+          <div class="drop-zone-content" id="zoneMeasures"></div>
+        </div>
+      </div>
+    </aside>
+
+  </div>
+
+  <!-- Status Bar -->
+  <footer class="status-bar">
+    <div id="statusMessage">Dataset loaded. Click any editable cell (highlighted in yellow) to edit value or disaggregate.</div>
+    <div class="status-stats">
+      <div class="stat-item">Selected: <span id="statSelected">None</span></div>
+      <div class="stat-item">Avg: <span id="statAvg">-</span></div>
+      <div class="stat-item">Sum: <span id="statSum">-</span></div>
+    </div>
+  </footer>
+
+  <!-- Modal: Custom Dynamic Formula Builder -->
+  <div class="modal-overlay" id="formulaModal">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3>➕ Add Custom Dynamic Formula</h3>
+        <button class="modal-close" id="btnCloseFormulaModal">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="modalMeasureName">Measure Name / Label</label>
+          <input type="text" id="modalMeasureName" class="form-control" placeholder="e.g. Custom Demand Formula">
+        </div>
+
+        <div class="form-group">
+          <label for="modalFormulaText">Formula Expression</label>
+          <textarea id="modalFormulaText" class="form-control form-control-mono" rows="3" placeholder="e.g. IF msr1 < msr2 THEN msr1 ELSE (n-2)*msr2*msr3"></textarea>
+          <span class="form-hint">Available aliases: <code>msr1</code> (Forecast), <code>msr2</code> (Sales), <code>msr3</code> (Price), <code>msr4</code> (Supply), <code>msr5</code> (Revenue), or explicit bracket names like <code>[ActualSales]</code>, <code>[Price]</code>.</span>
+        </div>
+
+        <div class="form-group">
+          <label>Quick Formula Presets (Click to insert):</label>
+          <div class="formula-presets">
+            <span class="preset-chip" data-formula="IF msr1 < msr2 THEN msr1 ELSE (n-2)*msr2*msr3">IF msr1 &lt; msr2 THEN msr1 ELSE (n-2)*msr2*msr3</span>
+            <span class="preset-chip" data-formula="IF(ActualSales > Forecast, ActualSales, Forecast * 1.1)">IF(ActualSales &gt; Forecast, ActualSales, Forecast * 1.1)</span>
+            <span class="preset-chip" data-formula="[Revenue] - ([Forecast] * [Price] * 0.75)">[Revenue] - ([Forecast] * [Price] * 0.75)</span>
+            <span class="preset-chip" data-formula="PREV([EndingInventory], 1) + [Supply] - [Forecast]">PREV([EndingInventory], 1) + [Supply] - [Forecast]</span>
+            <span class="preset-chip" data-formula="MIN(ActualSales, Forecast)">MIN(ActualSales, Forecast)</span>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Evaluation Mode:</label>
+          <div class="radio-group">
+            <label class="radio-label">
+              <input type="radio" name="modalEvalMode" value="POST_AGGREGATE" checked>
+              <strong>Aggregate Level (Post-Aggregation)</strong> - Evaluates directly on parent totals (Country, Region, Product Family)
+            </label>
+          </div>
+          <div class="radio-group" style="margin-top: 6px;">
+            <label class="radio-label">
+              <input type="radio" name="modalEvalMode" value="LEAF_ROLLUP">
+              <strong>Leaf Level (Rollup)</strong> - Evaluates on each atomic fact row and sums/averages up
+            </label>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="modalParamN">Parameter <code>n</code> Value (if used in formula)</label>
+          <input type="number" id="modalParamN" class="form-control" value="4" style="width: 100px;">
+        </div>
+
+        <div id="formulaValidationResult" style="font-size: 12px; font-weight: 600;"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" id="btnCancelFormulaModal">Cancel</button>
+        <button class="btn btn-primary" id="btnSaveFormula">Save & Apply Formula</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Import CSV -->
+  <div class="modal-overlay" id="importModal">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3>📁 Import CSV Dataset</h3>
+        <button class="modal-close" id="btnCloseImportModal">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Choose CSV File to Upload:</label>
+          <input type="file" id="csvFileInput" accept=".csv,text/csv" class="form-control">
+        </div>
+        <div style="text-align: center; color: var(--text-muted); font-size: 12px; margin: 4px 0;">— OR PASTE CSV TEXT BELOW —</div>
+        <div class="form-group">
+          <label for="csvPasteArea">Paste Comma-Separated CSV:</label>
+          <textarea id="csvPasteArea" class="form-control form-control-mono" rows="8" placeholder="Region,Country,City,ProductFamily,Item,Year,Quarter,Month,Price,ActualSales,Forecast,Supply,InitialInventory..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" id="btnCancelImport">Cancel</button>
+        <button class="btn btn-primary" id="btnApplyImport">Load CSV Data</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Export CSV -->
+  <div class="modal-overlay" id="exportModal">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3>💾 Export Pivot Grid to CSV</h3>
+        <button class="modal-close" id="btnCloseExportModal">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="csvExportPreview">CSV Export Output:</label>
+          <textarea id="csvExportPreview" class="form-control form-control-mono" rows="10" readonly></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" id="btnCopyExportCSV">Copy to Clipboard</button>
+        <button class="btn btn-primary" id="btnDownloadExportCSV">Download .CSV File</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="js/formula.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/engine.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
