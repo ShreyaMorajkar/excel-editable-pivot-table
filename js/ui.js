@@ -381,21 +381,27 @@ class PivotUI {
     const colDims = this.engine.columnDimensions;
 
     if (this.measurePlacement === 'ROWS') {
-      // 1. Top Level Dimension (e.g. Year) with Expand/Collapse
+      // 1. Top Level Dimension Header Row (Year)
       const tr0 = document.createElement('tr');
-      const cornerTh = document.createElement('th');
-      cornerTh.className = 'corner-header';
-      cornerTh.rowSpan = colDims.length;
-      cornerTh.colSpan = 2; // Spans both the Hierarchy Column and the Measure Name Column!
-      cornerTh.innerHTML = `<strong>${this.engine.rowDimensions.join(' ▸ ')}</strong>`;
-      tr0.appendChild(cornerTh);
+      tr0.className = 'header-row-tier-1';
+
+      // Explicit Corner Header 1 (Dimension Hierarchy)
+      const corner1_0 = document.createElement('th');
+      corner1_0.className = 'corner-header sticky-col-1 col-hierarchy';
+      corner1_0.innerHTML = `<strong>${this.engine.rowDimensions.join(' ▸ ')}</strong>`;
+      tr0.appendChild(corner1_0);
+
+      // Explicit Corner Header 2 (Metric / Measure Label)
+      const corner2_0 = document.createElement('th');
+      corner2_0.className = 'corner-header sticky-col-2 col-measure';
+      corner2_0.innerHTML = `<strong>Metric / Measure</strong>`;
+      tr0.appendChild(corner2_0);
 
       timePeriods.forEach(period => {
         if (period.isFirstInGroup) {
           const th = document.createElement('th');
           th.colSpan = period.groupSpan;
-          th.style.background = '#d9e2ec';
-          th.style.borderBottom = '2px solid #9fb3c8';
+          th.className = 'col-data-header';
 
           const container = document.createElement('div');
           container.className = 'tree-node-content';
@@ -426,12 +432,25 @@ class PivotUI {
       });
       thead.appendChild(tr0);
 
-      // 2. Child Level Dimensions (e.g. Month)
+      // 2. Child Level Dimensions (Month)
       if (colDims.length > 1) {
         for (let lvl = 1; lvl < colDims.length; lvl++) {
           const trLvl = document.createElement('tr');
+          trLvl.className = 'header-row-tier-2';
+
+          const corner1_1 = document.createElement('th');
+          corner1_1.className = 'corner-header sticky-col-1 col-hierarchy corner-sub';
+          corner1_1.textContent = '';
+          trLvl.appendChild(corner1_1);
+
+          const corner2_1 = document.createElement('th');
+          corner2_1.className = 'corner-header sticky-col-2 col-measure corner-sub';
+          corner2_1.textContent = '';
+          trLvl.appendChild(corner2_1);
+
           timePeriods.forEach(period => {
             const th = document.createElement('th');
+            th.className = 'col-data-header';
             th.textContent = period.colValues[lvl] || (period.isCollapsed ? 'Total' : '');
             if (period.isCollapsed) {
               th.style.background = '#eef2f6';
@@ -445,18 +464,18 @@ class PivotUI {
     } else {
       // Measures on Columns (Spread)
       const tr0 = document.createElement('tr');
-      const cornerTh = document.createElement('th');
-      cornerTh.className = 'corner-header';
-      cornerTh.rowSpan = colDims.length + 1;
-      cornerTh.innerHTML = `<strong>${this.engine.rowDimensions.join(' ▸ ')}</strong>`;
-      tr0.appendChild(cornerTh);
+      tr0.className = 'header-row-tier-1';
+
+      const corner0 = document.createElement('th');
+      corner0.className = 'corner-header sticky-col-1 col-hierarchy';
+      corner0.innerHTML = `<strong>${this.engine.rowDimensions.join(' ▸ ')}</strong>`;
+      tr0.appendChild(corner0);
 
       timePeriods.forEach(period => {
         if (period.isFirstInGroup) {
           const th = document.createElement('th');
           th.colSpan = period.groupSpan * activeMeasures.length;
-          th.style.background = '#d9e2ec';
-          th.style.borderBottom = '2px solid #9fb3c8';
+          th.className = 'col-data-header';
 
           const container = document.createElement('div');
           container.className = 'tree-node-content';
@@ -486,13 +505,21 @@ class PivotUI {
       });
       thead.appendChild(tr0);
 
-      // Child Level Dimensions (e.g. Month)
+      // Child Level Dimensions (Month)
       if (colDims.length > 1) {
         for (let lvl = 1; lvl < colDims.length; lvl++) {
           const trLvl = document.createElement('tr');
+          trLvl.className = 'header-row-tier-2';
+
+          const cornerLvl = document.createElement('th');
+          cornerLvl.className = 'corner-header sticky-col-1 col-hierarchy corner-sub';
+          cornerLvl.textContent = '';
+          trLvl.appendChild(cornerLvl);
+
           timePeriods.forEach(period => {
             const th = document.createElement('th');
             th.colSpan = activeMeasures.length;
+            th.className = 'col-data-header';
             th.textContent = period.colValues[lvl] || (period.isCollapsed ? 'Total' : '');
             if (period.isCollapsed) {
               th.style.background = '#eef2f6';
@@ -506,6 +533,13 @@ class PivotUI {
 
       // Bottom header row for Measures
       const measTr = document.createElement('tr');
+      measTr.className = 'header-row-tier-3';
+
+      const cornerMeas = document.createElement('th');
+      cornerMeas.className = 'corner-header sticky-col-1 col-hierarchy corner-sub';
+      cornerMeas.textContent = '';
+      measTr.appendChild(cornerMeas);
+
       timePeriods.forEach(period => {
         activeMeasures.forEach(m => {
           const th = document.createElement('th');
